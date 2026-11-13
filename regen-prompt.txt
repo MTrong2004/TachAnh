@@ -1,0 +1,1 @@
+Tạo {ten} tách nền. Vẽ lại đúng vật trong ảnh đính kèm: giữ nguyên nét vẽ, màu sắc và tỉ lệ của bản gốc. Chỉ vẽ một mình vật đó, đầy đủ trọn vẹn, vẽ nốt những phần đang bị vật khác che, không bị cắt ở mép. Ảnh PNG nền trong suốt thật: không nền, không khung, không bóng đổ ra nền, không thêm chữ.

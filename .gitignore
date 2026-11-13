@@ -1,0 +1,26 @@
+# Môi trường Python
+.venv/
+__pycache__/
+*.pyc
+
+# Kết quả chạy (chứa ảnh nguồn: người thật, logo, ảnh khách hàng) — không đưa lên git
+ket-qua/
+
+# Model tải về (để ở ~/.cache, phòng khi ai chép vào đây)
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+
+# File tạm, hệ điều hành, editor
+*.tmp
+*.log
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# ai-kit memory cache
+.agent-memory/*.json
+.agent-memory/*.lock

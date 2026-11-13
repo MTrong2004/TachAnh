@@ -1,0 +1,9 @@
+# Python 3.11. Cài PyTorch bản CPU trước:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# rồi:
+#   pip install -r requirements.txt
+torch>=2.2
+transformers>=4.44,<4.50
+numpy>=1.26
+pillow>=10.0
+scipy>=1.11
