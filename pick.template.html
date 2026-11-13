@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Chọn bản vẽ lại</title>
+<style>
+:root {
+  --paper-l: #f6f5f1; --paper-d: #17181a;
+  --panel-l: #ffffff; --panel-d: #212326;
+  --ink-l: #1b1c1e; --ink-d: #ecedee;
+  --muted-l: #5d6066; --muted-d: #a3a7ad;
+  --line-l: #d5d6d9; --line-d: #3a3d42;
+  --accent-l: #1c6b3a; --accent-d: #6fd08f;
+  --on-accent-l: #ffffff; --on-accent-d: #0d1a11;
+
+  --paper: var(--paper-l); --panel: var(--panel-l); --ink: var(--ink-l); --muted: var(--muted-l);
+  --line: var(--line-l); --accent: var(--accent-l); --on-accent: var(--on-accent-l);
+  @media (prefers-color-scheme: dark) {
+    --paper: var(--paper-d); --panel: var(--panel-d); --ink: var(--ink-d); --muted: var(--muted-d);
+    --line: var(--line-d); --accent: var(--accent-d); --on-accent: var(--on-accent-d);
+  }
+  @supports (color: light-dark(white, black)) {
+    --paper: light-dark(var(--paper-l), var(--paper-d));
+    --panel: light-dark(var(--panel-l), var(--panel-d));
+    --ink: light-dark(var(--ink-l), var(--ink-d));
+    --muted: light-dark(var(--muted-l), var(--muted-d));
+    --line: light-dark(var(--line-l), var(--line-d));
+    --accent: light-dark(var(--accent-l), var(--accent-d));
+    --on-accent: light-dark(var(--on-accent-l), var(--on-accent-d));
+  }
+  color-scheme: light dark;
+  accent-color: var(--accent);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.45 system-ui, "Segoe UI", sans-serif; }
+main { max-width: 1280px; margin-inline: auto; padding: 16px 16px 96px; }
+h1 { font-size: 20px; margin: 0 0 4px; text-wrap: balance; }
+.hint { color: var(--muted); font-size: 14px; margin: 0 0 16px; max-width: 70ch; text-wrap: pretty; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 16px; }
+h2 { font-size: 16px; margin: 0 0 10px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+figure { margin: 0; }
+.imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.imgs img, .orig img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; background: var(--paper); border-radius: 6px; }
+figcaption, .cap { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.orig { border: 1px dashed var(--line); border-radius: 8px; padding: 8px; }
+.orig .imgs { grid-template-columns: 1fr; }
+.card { display: block; border: 2px solid var(--line); border-radius: 8px; padding: 8px; cursor: pointer; }
+.card:has(:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+.card:has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.choose { display: flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; }
+.choose input { width: 20px; height: 20px; margin: 0; }
+.tag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: var(--on-accent); }
+.bar { position: fixed; inset: auto 0 0 0; background: var(--panel); border-top: 1px solid var(--line); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: center; }
+.save { min-height: 44px; padding: 0 18px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 600; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.status { font-size: 14px; color: var(--muted); margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Chọn bản vẽ lại cho từng element</h1>
+  <p class="hint">Mỗi phương án có hai ảnh: bên trái là bản vẽ riêng, bên phải là bản đó đặt vào đúng chỗ trên ảnh gốc. Bản lệch hình, thêm chi tiết lạ hay tràn ra ngoài sẽ lộ rõ ở ảnh bên phải. «Khớp» là mức giống với phần nhìn thấy của bản gốc, chỉ để tham khảo; mặc định chọn sẵn bản khớp nhất.</p>
+  <div id="list"></div>
+</main>
+<div class="bar">
+  <button type="button" class="save" id="bSave">Lưu lựa chọn</button>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+</div>
+<script>
+const DATA = /*__DATA__*/null;
+const $ = (id) => document.getElementById(id);
+const say = (t) => ($("status").textContent = t);
+const pct = (f) => `${Math.round(Math.max(0, f) * 100)}%`;
+
+let picks = {};
+try { picks = JSON.parse(localStorage.getItem(DATA.key)) || {}; } catch {}
+const persist = () => { try { localStorage.setItem(DATA.key, JSON.stringify(picks)); } catch {} };
+
+function img(src, alt) { const i = new Image(); i.src = src; i.alt = alt; i.decoding = "async"; return i; }
+
+for (const it of DATA.items) {
+  const known = it.options.some((o) => o.file === picks[it.stem]);
+  if (!known) picks[it.stem] = it.chosen;
+  const sec = document.createElement("section");
+  const h = document.createElement("h2");
+  h.id = `h-${it.stem}`;
+  h.textContent = `${it.name} · ${it.options.length} phương án`;
+  const fs = document.createElement("fieldset");
+  fs.setAttribute("aria-labelledby", h.id);
+  const row = document.createElement("div");
+  row.className = "row";
+
+  const orig = document.createElement("figure");
+  orig.className = "orig";
+  const oi = document.createElement("div");
+  oi.className = "imgs";
+  oi.append(img(it.original, `${it.name} trong ảnh gốc`));
+  const oc = document.createElement("figcaption");
+  oc.textContent = "Bản gốc trong ảnh";
+  orig.append(oi, oc);
+  row.append(orig);
+
+  it.options.forEach((o, k) => {
+    const card = document.createElement("label");
+    card.className = "card";
+    const head = document.createElement("span");
+    head.className = "choose";
+    const r = document.createElement("input");
+    r.type = "radio"; r.name = it.stem; r.value = o.file; r.checked = picks[it.stem] === o.file;
+    r.addEventListener("change", () => { picks[it.stem] = o.file; persist(); say(`${it.name}: đã chọn phương án ${k + 1}.`); });
+    const t = document.createElement("span");
+    t.textContent = `Phương án ${k + 1} · khớp ${pct(o.fit)}`;
+    head.append(r, t);
+    if (k === 0) { const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = "Khớp nhất"; head.append(tag); }
+    const imgs = document.createElement("span");
+    imgs.className = "imgs";
+    imgs.append(img(o.alone, `Phương án ${k + 1}, vẽ riêng`), img(o.placed, `Phương án ${k + 1}, đặt vào ảnh gốc`));
+    const cap = document.createElement("span");
+    cap.className = "cap";
+    cap.textContent = "Vẽ riêng · Đặt vào ảnh gốc";
+    card.append(head, imgs, cap);
+    row.append(card);
+  });
+  fs.append(row);
+  sec.append(h, fs);
+  $("list").append(sec);
+}
+
+$("bSave").addEventListener("click", () => {
+  const body = JSON.stringify({ chon: picks }, null, 1);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([body], { type: "application/json" }));
+  a.download = "regen-pick.json"; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  say("Đã lưu regen-pick.json. Quay lại cửa sổ TachAnh, chọn 2 để xuất lại với bản đã chọn.");
+});
+</script>
+</body>
+</html>

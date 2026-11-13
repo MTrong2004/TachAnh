@@ -10,6 +10,9 @@ set "OUTROOT=%ROOT%ket-qua"
 rem Bo gen anh Copilot dung chung; dat bien COPILOT_IMAGEGEN_DIR de doi cho khac
 set "GEN=%USERPROFILE%\.gemini\tools\copilot-imagegen"
 if defined COPILOT_IMAGEGEN_DIR set "GEN=%COPILOT_IMAGEGEN_DIR%"
+rem So phuong an Copilot ve cho moi element (1-8); dat bien TACHANH_VARIANTS de doi
+set "VARIANTS=3"
+if defined TACHANH_VARIANTS set "VARIANTS=%TACHANH_VARIANTS%"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONWARNINGS=ignore"
 set "HF_HUB_DISABLE_SYMLINKS_WARNING=1"
@@ -37,6 +40,7 @@ echo   2. Xuất element            (sau khi đã lưu file nhóm ở bảng duy
 echo   3. Vẽ lại bằng Copilot     (các element đánh dấu «Vẽ lại»)
 echo   4. Mở lại bảng duyệt
 echo   5. Mở thư mục kết quả
+echo   6. Chọn bản vẽ lại          (so các phương án Copilot vẽ, lưu lựa chọn rồi chọn 2)
 echo   0. Thoát
 if defined LAST echo   Đang làm: %LAST%
 echo ===========================================================
@@ -47,6 +51,7 @@ if "%C%"=="2" goto export
 if "%C%"=="3" goto copilot
 if "%C%"=="4" goto review
 if "%C%"=="5" start "" "%OUTROOT%" & goto menu
+if "%C%"=="6" goto pickregen
 if "%C%"=="0" exit /b 0
 rem Khong co dau vao (cua so bi dong, chay tu script): thoat sau 3 lan trong lien tiep, khong lap vo han
 if defined C set "EMPTY=0"
@@ -100,6 +105,13 @@ choice /c CK /n /m "Thấy groups.json trong Downloads. Dùng file này cho %NAM
 if errorlevel 2 goto export_run
 move /y "%DL%" "%OUTROOT%\%NAME%\groups.json" >nul
 :export_run
+set "DLP=%USERPROFILE%\Downloads\regen-pick.json"
+if defined BATCH goto export_go
+if not exist "%DLP%" goto export_go
+choice /c CK /n /m "Thấy regen-pick.json (bản vẽ lại đã chọn) trong Downloads. Dùng cho %NAME%? (C = có, K = không): "
+if errorlevel 2 goto export_go
+move /y "%DLP%" "%OUTROOT%\%NAME%\regen-pick.json" >nul
+:export_go
 if not exist "%OUTROOT%\%NAME%\groups.json" echo Chưa có groups.json, dùng nhóm gợi ý tự động.
 "%PY%" "%ROOT%split.py" export "%OUTROOT%\%NAME%"
 if errorlevel 1 echo Lỗi ở bước xuất. & pause & goto menu
@@ -113,17 +125,26 @@ if errorlevel 1 goto menu
 if errorlevel 1 pause & goto menu
 pushd "%OUTROOT%\%NAME%"
 echo.
-call node "%GEN%\gen-parallel.mjs" --dry-run
+call node "%GEN%\gen-parallel.mjs" "*" --variants %VARIANTS% --dry-run
 echo.
 if defined BATCH goto copilot_run
-choice /c CK /n /m "Gửi các ảnh trên sang Copilot? (C = có, K = không): "
+choice /c CK /n /m "Gửi các ảnh trên sang Copilot (%VARIANTS% phương án mỗi element)? (C = có, K = không): "
 if errorlevel 2 popd & goto menu
 :copilot_run
-call node "%GEN%\gen-parallel.mjs" 3
+call node "%GEN%\gen-parallel.mjs" 3 "*" --variants %VARIANTS%
 popd
 "%PY%" "%ROOT%split.py" export "%OUTROOT%\%NAME%" --no-bg
-if not defined TACHANH_NO_OPEN start "" "%OUTROOT%\%NAME%\sheet.jpg"
-echo Ảnh Copilot vẽ lại nằm ở "%OUTROOT%\%NAME%\regen". Mở xem từng ảnh trước khi dùng.
+echo Ảnh Copilot vẽ lại nằm ở "%OUTROOT%\%NAME%\regen".
+echo Trang so sánh đang mở: chọn bản giống nhất cho từng element, bấm «Lưu lựa chọn», rồi quay lại đây chọn 2.
+if not defined TACHANH_NO_OPEN if exist "%OUTROOT%\%NAME%\chon-ban-ve.html" start "" "%OUTROOT%\%NAME%\chon-ban-ve.html"
+goto menu
+
+:pickregen
+call :pick
+if errorlevel 1 goto menu
+if not exist "%OUTROOT%\%NAME%\chon-ban-ve.html" echo "%NAME%" chưa có bản vẽ lại nào. Chọn 3 trước. & goto menu
+if not defined TACHANH_NO_OPEN start "" "%OUTROOT%\%NAME%\chon-ban-ve.html"
+echo Chọn xong bấm «Lưu lựa chọn», rồi chọn 2 để xuất lại với bản đã chọn.
 goto menu
 
 :review

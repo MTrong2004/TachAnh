@@ -29,8 +29,9 @@ curl -L --create-dirs -o ~/.cache/torch/hub/checkpoints/big-lama.pt https://gith
 ## Cách nhanh nhất: TachAnh.bat
 
 - Bấm đúp `TachAnh.bat` để mở menu, hoặc **kéo thả một ảnh lên file bat** để tách ngay.
-- Menu: 1 tách ảnh mới → 2 xuất element → 3 vẽ lại bằng Copilot; 4 mở lại bảng duyệt; 5 mở thư mục kết quả.
-- Bước 2 tự hỏi có lấy `groups.json` vừa tải về trong Downloads không, khỏi chép tay.
+- Menu: 1 tách ảnh mới → 2 xuất element → 3 vẽ lại bằng Copilot → 6 chọn bản vẽ lại → 2 xuất lại; 4 mở lại bảng duyệt; 5 mở thư mục kết quả.
+- Bước 2 tự hỏi có lấy `groups.json` và `regen-pick.json` vừa tải về trong Downloads không, khỏi chép tay.
+- Bước 3 cho Copilot vẽ 3 phương án mỗi element; đổi số bằng biến môi trường `TACHANH_VARIANTS` (1–8).
 - Kết quả nằm ở `ket-qua/<tên ảnh>/`. Bat nhớ ảnh đang làm, bấm Enter là dùng lại.
 - Chạy thẳng không qua menu: `TachAnh.bat xuat <tên>`, `TachAnh.bat copilot <tên>` (không hỏi lại, gửi Copilot luôn).
 
@@ -52,7 +53,8 @@ cd TachAnh
    *Giữ ảnh gốc* (cắt đúng pixel), *Vẽ lại* (cắt pixel + xuất vùng cắt để gen lại), *Là nền* (không xuất).
    Việc đang làm dở được trình duyệt nhớ lại.
 3. **export**: `elements/<tên>.png`, `layers/background.png` (nền lấp bằng LaMa), `manifest.json` (vị trí, thứ tự chồng ước lượng),
-   `sheet.jpg` (bảng xem), `copilot-crops/<tên>.png` (vùng cắt chữ nhật phóng to của các element «Vẽ lại», để đính kèm khi gen bằng Copilot).
+   `sheet.jpg` (bảng xem), `ghep-lai.jpg` (ghép lại cả ảnh từ nền + element, bản vẽ lại đặt đúng chỗ, để soi lệch),
+   `copilot-crops/<tên>.png` (ảnh đính kèm khi gen bằng Copilot, xem dưới).
    Không có `groups.json` thì dùng nhóm gợi ý tự động.
 
 ## Vẽ lại bằng Copilot
@@ -60,18 +62,30 @@ cd TachAnh
 ```bash
 .venv/Scripts/python split.py tasks <thư mục ra>      # sinh copilot-tasks.mjs + gen.config.json ngay trong thư mục ra
 cd <thư mục ra>
-node ~/.gemini/tools/copilot-imagegen/gen-parallel.mjs --dry-run
+node ~/.gemini/tools/copilot-imagegen/gen-parallel.mjs "*" --variants 3 --dry-run
 COPILOT_WORKER=auto node ~/.gemini/tools/copilot-imagegen/gen-assets-v2.mjs <tên>.png   # thử 1 ảnh trước
-node ~/.gemini/tools/copilot-imagegen/gen-parallel.mjs 3                                # cả lô
+node ~/.gemini/tools/copilot-imagegen/gen-parallel.mjs 3 "*" --variants 3              # cả lô, 3 phương án mỗi element
 cd <thư mục TachAnh>
-.venv/Scripts/python split.py export <thư mục ra> --no-bg   # manifest + sheet nhận ảnh trong regen/
+.venv/Scripts/python split.py export <thư mục ra> --no-bg   # chấm điểm, đặt bản vẽ lại vào chỗ, sinh chon-ban-ve.html
+# mở <thư mục ra>/chon-ban-ve.html, chọn bản cho từng element, «Lưu lựa chọn», chép regen-pick.json vào <thư mục ra>
+.venv/Scripts/python split.py export <thư mục ra>
 ```
 
-- Mỗi element «Vẽ lại» thành một task: đính kèm `copilot-crops/<tên>.png`, ảnh ra `regen/<tên>.png`.
+- Mỗi element «Vẽ lại» thành một task: đính kèm `copilot-crops/<tên>.png`, ảnh ra `regen/<tên>-var<k>.png` (và `regen/<tên>.png` nếu gen không kèm `--variants`).
+- **Ảnh đính kèm**: element cùng các mảnh khác nằm lọt (≥ 80% diện tích) trong bao lồi của nó; phần còn lại thay bằng nền trơn
+  (trắng / xám, chọn màu khác xa màu của vật). Mảnh nằm lọt thường là phần của vật bị gộp nhầm sang nhóm khác: export in tên nhóm đó
+  để sửa ở bảng duyệt. Chữ, giấy nền, vật bên cạnh không lọt vào ảnh nên Copilot không vẽ thêm chúng.
+- **Đặt vào chỗ**: export tìm tỉ lệ + vị trí để bản vẽ lại khớp nhất với phần element nhìn thấy trong ảnh gốc (phủ đúng chỗ, đúng màu,
+  không tràn ra nền; phần bị che không bị trừ điểm). Kết quả ở `manifest.json`: `regen` (file đang dùng), `regen_place`
+  (`[x, y, rộng, cao]` của cả ảnh vẽ lại trên ảnh gốc, giữ nguyên độ phân giải cao của bản vẽ), `regen_fit` (điểm khớp, 1 = khớp hoàn toàn).
+- **Chọn phương án**: mặc định dùng bản khớp nhất. `chon-ban-ve.html` hiện từng phương án vẽ riêng và đặt vào ảnh gốc cạnh bản gốc;
+  lựa chọn lưu ở `regen-pick.json` (`{"chon": {"<tên>": "<tên>-var2.png"}}`). Điểm khớp chỉ để tham khảo: bản đúng của cái loa được ~72%
+  vì màu giấy và phần bị che; bản lật ngang chỉ ~0%.
 - Câu lệnh gửi Copilot lấy từ `regen-prompt.txt` (chủ dự án sửa ở đó); `{ten}` thay bằng ô «Mô tả» trong bảng duyệt, không có thì dùng tên element.
 - Thư mục ra đóng vai "project" của bộ gen, nên phải `cd` vào đó trước khi chạy.
 - Không gửi ảnh người thật, logo, chữ sang Copilot: để chế độ «Giữ ảnh gốc».
-- Đã thử 2026-11-14: cái loa của poster ra PNG trong suốt thật, đủ cả phần bản cắt pixel bị thiếu.
+- Đã thử 2026-11-14: cái loa của poster ra PNG trong suốt thật, đủ cả phần bản cắt pixel bị thiếu (đai vàng, tay cầm bị gộp nhầm vào tiêu đề).
+  Kiểm tra đặt vào chỗ: cùng bản vẽ thêm lề và thu nhỏ 70% vẫn đặt về đúng chỗ, lệch dưới 0,3px.
 
 ## Giới hạn đã thấy
 
